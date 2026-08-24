@@ -1,177 +1,380 @@
-import React, { useState } from 'react';
+// src/App.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
-// 1.5 Importação da foto armazenada na subpasta src/images
 import foto1 from './images/profissional1.jpg';
 
 function App() {
-  // Estado para controlar qual profissional está com o modal aberto
   const [profissionalSelecionado, setProfissionalSelecionado] = useState(null);
+  const [formContato, setFormContato] = useState({ nome: '', email: '', mensagem: '' });
+  const [mensagemEnviada, setMensagemEnviada] = useState(false);
+  const [theme, setTheme] = useState('light');
 
-  // 1.4 Dados completos dos profissionais em JSON
+  const modalRef = useRef(null);
+
+  // 1. GERENCIAMENTO DE TEMA COM PERSISTÊNCIA (localStorage)
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    } else {
+      const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      const initialTheme = prefersLight ? 'light' : 'dark';
+      setTheme(initialTheme);
+      document.documentElement.setAttribute('data-theme', initialTheme);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
+    localStorage.setItem('theme', nextTheme);
+  };
+
+  // 2. SUPORTE A LIBRAS (VLibras)
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+    script.async = true;
+    script.onload = () => {
+      if (window.VLibras) {
+        new window.VLibras.Widget('https://vlibras.gov.br/app');
+      }
+    };
+    document.body.appendChild(script);
+  }, []);
+
+  // 3. GERENCIAMENTO DE FOCO E TECLA ESC NO MODAL (Acessibilidade por Teclado)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && profissionalSelecionado) {
+        setProfissionalSelecionado(null);
+      }
+    };
+
+    if (profissionalSelecionado) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Foca automaticamente no modal ao abrir
+      setTimeout(() => {
+        if (modalRef.current) {
+          modalRef.current.focus();
+        }
+      }, 50);
+    }
+
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [profissionalSelecionado]);
+
   const profissionais = [
     {
       id: 1,
       nome: "Ana Silva",
-      cargo: "Desenvolvedora Frontend",
+      cargo: "Desenvolvedora Frontend Senior",
       imagem: foto1,
-      tipoImagem: "src",
-      estiloTipo: "Função JSON",
       bio: "Especialista em React, TypeScript e UI/UX. Possui 5 anos de experiência criando interfaces modernas e acessíveis.",
-      habilidades: ["React", "JavaScript", "CSS3/Sass", "Figma", "Acessibilidade (WCAG)"],
-      contato: "ana.silva@techcorp.com"
+      habilidades: ["React", "JavaScript", "CSS3/Sass", "Figma"],
+      contato: "ana.silva@techcorp.com",
+      disponibilidade: "Disponível para projetos"
     },
     {
       id: 2,
       nome: "Carlos Souza",
       cargo: "Engenheiro de DevOps",
       imagem: "/profissional2.jpg",
-      tipoImagem: "public",
-      estiloTipo: "CSS Inline",
       bio: "Focado em automação de infraestrutura, CI/CD e ambientes em nuvem. Apaixonado por cultura DevOps e segurança.",
-      habilidades: ["Docker", "Kubernetes", "AWS", "GitHub Actions", "Terraform"],
-      contato: "carlos.souza@techcorp.com"
+      habilidades: ["Docker", "Kubernetes", "AWS", "GitHub Actions"],
+      contato: "carlos.souza@techcorp.com",
+      disponibilidade: "Em projeto atual"
     },
     {
       id: 3,
       nome: "Mariana Costa",
       cargo: "Arquiteta de Software",
       imagem: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500",
-      tipoImagem: "HTTPS Externa",
-      estiloTipo: "Classe CSS Externa",
       bio: "Líder técnica com vasta experiência em microsserviços, modelagem de sistemas escaláveis e otimização de performance.",
-      habilidades: ["Arquitetura de Sistemas", "Node.js", "GraphQL", "Microsserviços", "SQL/NoSQL"],
-      contato: "mariana.costa@techcorp.com"
+      habilidades: ["Node.js", "GraphQL", "Microsserviços", "SQL/NoSQL"],
+      contato: "mariana.costa@techcorp.com",
+      disponibilidade: "Disponível para consultoria"
     }
   ];
 
-  // 1.1 Estilos do elemento "1" via função que devolve um objeto JSON
-  const getEstilosElemento1 = () => {
-    return {
-      border: '2px solid #e2e8f0',
-      borderRadius: '12px',
-      padding: '16px',
-      backgroundColor: '#ffffff',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-      textAlign: 'center',
-      flex: '1',
-      minWidth: '250px'
-    };
+  const handleEnviarContato = (e) => {
+    e.preventDefault();
+    if (formContato.nome.trim() && formContato.email.trim() && formContato.mensagem.trim()) {
+      setMensagemEnviada(true);
+      setFormContato({ nome: '', email: '', mensagem: '' });
+      setTimeout(() => setMensagemEnviada(false), 6000);
+    }
   };
 
   return (
-    <div>
-      {/* Cabeçalho */}
-      <header className="header-container">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+    <div className="site-wrapper">
+      {/* WIDGET VLIBRAS */}
+      <div vp-component="true">
+        <div vp-page-box="true"></div>
+        <div vp-widget-wrapper="true"></div>
+      </div>
+
+      {/* SKIP LINK PARA LEITORES DE TELA E TECLADO */}
+      <a href="#main-content" className="skip-link">
+        Pular para o conteúdo principal
+      </a>
+
+      {/* HEADER */}
+      <header className="header-container" role="banner">
+        <div className="nav-brand">
           <img 
             src="https://cdn-icons-png.flaticon.com/512/1087/1087815.png" 
-            alt="Logotipo da empresa TechCorp" 
+            alt="Logotipo oficial da TechCorp Solutions" 
             className="header-logo" 
           />
-          <h1>TechCorp Solutions</h1>
+          <div className="brand-text">
+            <h1>TechCorp</h1>
+            <span>SOLUTIONS</span>
+          </div>
         </div>
-        <p>Inovação e excelência em desenvolvimento de software.</p>
+        <nav className="nav-links" aria-label="Navegação principal">
+          <a href="#home">Início</a>
+          <a href="#talentos">Talentos</a>
+          <a href="#sobre">Sobre Nós</a>
+          
+          <button 
+            type="button" 
+            className="btn-theme-toggle" 
+            onClick={toggleTheme}
+            aria-label={`Alternar para tema ${theme === 'light' ? 'escuro' : 'claro'}`}
+          >
+            {theme === 'light' ? '🌙 Escuro' : '☀️ Claro'}
+          </button>
+
+          <a href="#contato" className="btn-primary-nav">Contato</a>
+        </nav>
       </header>
 
-      {/* Conteúdo Principal */}
-      <main className="cards-container">
+      <main id="main-content" tabIndex="-1">
+        {/* HERO SECTION */}
+        <section className="hero-section" id="home" aria-labelledby="hero-title">
+          <div className="hero-content">
+            <span className="badge">Plataforma de Talentos Tech</span>
+            <h2 id="hero-title">Conecte sua empresa aos melhores especialistas de Tecnologia</h2>
+            <p>Encontre desenvolvedores, arquitetos e engenheiros altamente qualificados para transformar suas ideias em produtos digitais de alta performance.</p>
+            <div className="hero-actions">
+              <a href="#talentos" className="btn-primary">Explorar Talentos</a>
+              <a href="#sobre" className="btn-secondary">Sobre a TechCorp</a>
+            </div>
+          </div>
+        </section>
 
-        {/* Card 1 */}
-        <div className="card-hover" style={getEstilosElemento1()}>
-          <img 
-            src={profissionais[0].imagem} 
-            alt={`Foto de ${profissionais[0].nome}`} 
-            style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px' }} 
-          />
-          <h3>{profissionais[0].nome} - {profissionais[0].cargo}</h3>
-          <button 
-            className="btn-perfil" 
-            onClick={() => setProfissionalSelecionado(profissionais[0])}
-            aria-label={`Ver perfil de ${profissionais[0].nome}`}
-          >
-            Ver Perfil
-          </button>
-        </div>
+        {/* TALENTOS */}
+        <section className="main-section" id="talentos" aria-labelledby="talentos-title">
+          <div className="section-header">
+            <h2 id="talentos-title">Nossa Equipe de Destaque</h2>
+            <p>Conheça os especialistas que lideram a transformação digital na nossa plataforma.</p>
+          </div>
 
-        {/* Card 2 */}
-        <div className="card-hover" style={{
-          border: '2px solid #cbd5e0',
-          borderRadius: '12px',
-          padding: '16px',
-          backgroundColor: '#edf2f7',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          textAlign: 'center',
-          flex: '1',
-          minWidth: '250px'
-        }}>
-          <img 
-            src={profissionais[1].imagem} 
-            alt={`Foto de ${profissionais[1].nome}`} 
-            style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px' }} 
-          />
-          <h3>{profissionais[1].nome} - {profissionais[1].cargo}</h3>
-          <button 
-            className="btn-perfil" 
-            onClick={() => setProfissionalSelecionado(profissionais[1])}
-            aria-label={`Ver perfil de ${profissionais[1].nome}`}
-          >
-            Ver Perfil
-          </button>
-        </div>
+          <div className="cards-container">
+            {profissionais.map((prof) => (
+              <article key={prof.id} className="card-hover card-estilizado">
+                <div className="card-img-wrapper">
+                  <img 
+                    src={prof.imagem} 
+                    alt={`Fotografia de perfil de ${prof.nome}, ${prof.cargo}`} 
+                  />
+                  <span className="status-badge" aria-label={`Status: ${prof.disponibilidade}`}>
+                    {prof.disponibilidade}
+                  </span>
+                </div>
+                <h3>{prof.nome}</h3>
+                <p className="card-subtitle">{prof.cargo}</p>
+                <button 
+                  className="btn-perfil" 
+                  onClick={() => setProfissionalSelecionado(prof)}
+                  aria-label={`Abrir janela com detalhes sobre ${prof.nome}`}
+                >
+                  Ver Perfil Completo
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
 
-        {/* Card 3 */}
-        <div className="card-estilizado card-hover">
-          <img 
-            src={profissionais[2].imagem} 
-            alt={`Foto de ${profissionais[2].nome}`} 
-          />
-          <h3>{profissionais[2].nome} - {profissionais[2].cargo}</h3>
-          <button 
-            className="btn-perfil" 
-            onClick={() => setProfissionalSelecionado(profissionais[2])}
-            aria-label={`Ver perfil de ${profissionais[2].nome}`}
-          >
-            Ver Perfil
-          </button>
-        </div>
+        {/* SOBRE NÓS */}
+        <section className="about-section" id="sobre" aria-labelledby="sobre-title">
+          <div className="about-container">
+            <div className="about-text">
+              <span className="badge-light">Quem Somos</span>
+              <h2 id="sobre-title">Impulsionando a Inovação Tecnológica com Talentos de Elite</h2>
+              <p>
+                A <strong>TechCorp Solutions</strong> conecta projetos desafiadores aos melhores profissionais do mercado. Garantimos agilidade, código de alta qualidade e acessibilidade universal.
+              </p>
+              <div className="about-stats" role="region" aria-label="Estatísticas da empresa">
+                <div className="stat-card">
+                  <h3>+150</h3>
+                  <p>Projetos Entregues</p>
+                </div>
+                <div className="stat-card">
+                  <h3>99%</h3>
+                  <p>Satisfação dos Clientes</p>
+                </div>
+                <div className="stat-card">
+                  <h3>24/7</h3>
+                  <p>Suporte Especializado</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
+        {/* CONTATO */}
+        <section className="contact-section" id="contato" aria-labelledby="contato-title">
+          <div className="contact-container">
+            <div className="contact-info">
+              <h2 id="contato-title">Fale Conosco</h2>
+              <p>Oferecemos canais 100% acessíveis via texto para comunicação com todos os públicos.</p>
+              
+              <div className="contact-details">
+                <div className="contact-item">
+                  <strong>📍 Endereço:</strong>
+                  <span>Av. Paulista, 1000 - São Paulo, SP</span>
+                </div>
+                <div className="contact-item">
+                  <strong>📧 E-mail:</strong>
+                  <span>contato@techcorp.com</span>
+                </div>
+                <div className="contact-item">
+                  <strong>💬 WhatsApp / Mensagem:</strong>
+                  <span>(11) 99999-8921</span>
+                </div>
+              </div>
+            </div>
+
+            <form className="contact-form" onSubmit={handleEnviarContato} aria-labelledby="form-title" noValidate>
+              <h3 id="form-title">Envie uma Mensagem</h3>
+              
+              {mensagemEnviada && (
+                <div className="success-banner" role="status" aria-live="polite">
+                  ✅ Sua mensagem foi enviada com sucesso! Entraremos em contato em breve.
+                </div>
+              )}
+
+              <div className="form-group">
+                <label htmlFor="nome">Seu Nome <span className="required-star" aria-hidden="true">*</span></label>
+                <input 
+                  type="text" 
+                  id="nome" 
+                  name="nome"
+                  autoComplete="name"
+                  placeholder="Ex: João Silva" 
+                  value={formContato.nome}
+                  onChange={(e) => setFormContato({...formContato, nome: e.target.value})}
+                  required 
+                  aria-required="true"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="email">Seu E-mail <span className="required-star" aria-hidden="true">*</span></label>
+                <input 
+                  type="email" 
+                  id="email" 
+                  name="email"
+                  autoComplete="email"
+                  placeholder="Ex: joao@empresa.com" 
+                  value={formContato.email}
+                  onChange={(e) => setFormContato({...formContato, email: e.target.value})}
+                  required 
+                  aria-required="true"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="mensagem">Como podemos ajudar? <span className="required-star" aria-hidden="true">*</span></label>
+                <textarea 
+                  id="mensagem" 
+                  name="mensagem"
+                  rows="4" 
+                  placeholder="Descreva sua necessidade..." 
+                  value={formContato.mensagem}
+                  onChange={(e) => setFormContato({...formContato, mensagem: e.target.value})}
+                  required
+                  aria-required="true"
+                ></textarea>
+              </div>
+
+              <button type="submit" className="btn-primary btn-submit">Enviar Mensagem por Texto</button>
+            </form>
+          </div>
+        </section>
       </main>
 
-      {/* Modal de Detalhes do Perfil */}
+      {/* MODAL COM TRAP FOCUS E TECLA ESC */}
       {profissionalSelecionado && (
-        <div className="modal-overlay" onClick={() => setProfissionalSelecionado(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-overlay" 
+          onClick={() => setProfissionalSelecionado(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            ref={modalRef}
+            tabIndex="-1"
+          >
             <button 
+              type="button"
               className="modal-close" 
               onClick={() => setProfissionalSelecionado(null)}
-              aria-label="Fechar perfil"
+              aria-label="Fechar janela de detalhes"
             >
-              &times;
+              <span aria-hidden="true">&times;</span>
+              <span className="sr-only">Fechar</span>
             </button>
             <img 
               src={profissionalSelecionado.imagem} 
-              alt={profissionalSelecionado.nome} 
+              alt={`Foto de ${profissionalSelecionado.nome}`} 
               className="modal-img" 
             />
-            <h2>{profissionalSelecionado.nome}</h2>
+            <h2 id="modal-title">{profissionalSelecionado.nome}</h2>
             <p className="modal-cargo">{profissionalSelecionado.cargo}</p>
             <p className="modal-bio">{profissionalSelecionado.bio}</p>
             
-            <h4>Habilidades Principais:</h4>
-            <ul className="modal-habilidades">
+            <h4>Habilidades Principais</h4>
+            <ul className="modal-habilidades" aria-label="Lista de habilidades">
               {profissionalSelecionado.habilidades.map((hab, index) => (
                 <li key={index}>{hab}</li>
               ))}
             </ul>
 
             <div className="modal-footer">
-              <p><strong>Contato:</strong> {profissionalSelecionado.contato}</p>
-              <p><small>Estilização do card: {profissionalSelecionado.estiloTipo} | Imagem: {profissionalSelecionado.tipoImagem}</small></p>
+              <p><strong>Contato Direct:</strong> {profissionalSelecionado.contato}</p>
             </div>
           </div>
         </div>
       )}
+
+      {/* FOOTER */}
+      <footer className="main-footer" role="contentinfo">
+        <div className="footer-content">
+          <div className="footer-brand">
+            <h3>TechCorp Solutions</h3>
+            <p>Conectando inovação, engenharia de software e acessibilidade universal para todos.</p>
+          </div>
+          <nav className="footer-links" aria-label="Navegação do rodapé">
+            <h4>Navegação</h4>
+            <a href="#home">Início</a>
+            <a href="#talentos">Talentos</a>
+            <a href="#sobre">Sobre Nós</a>
+            <a href="#contato">Contato</a>
+          </nav>
+        </div>
+        <div className="copyright">
+          &copy; 2026 TechCorp Solutions. Todos os direitos reservados.
+        </div>
+      </footer>
     </div>
   );
 }
